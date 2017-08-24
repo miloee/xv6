@@ -106,7 +106,7 @@ boot_alloc(uint32_t n)
 	if (n > 0) {
 		nextfree = ROUNDUP((char *)(nextfree + n), PGSIZE);
 	}
-	if ((npages * PGSIZE) > (uint32_t)nextfree - KERNBASE)
+	if ((uint32_t)nextfree < KERNBASE)
 		panic("out of memory\n"); 
 	
 	return (void *) result;
