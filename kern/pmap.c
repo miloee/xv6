@@ -55,7 +55,7 @@ i386_detect_memory(void)
 	cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
 		totalmem, basemem, totalmem - basemem);
 	extern char end[];
-	cprintf("end = %x\n", (uint32_t)end);
+	cprintf("end = %x, npages = %x, npages_basemem = %x\n", (uint32_t)end, (uint32_t)npages, (uint32_t)npages_basemem);
 }
 
 
@@ -106,10 +106,9 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here.
 	result = nextfree;
 	if (n > 0) {
-//		nextfree = ROUNDUP((char *)(nextfree + n), PGSIZE);
-		nextfree = ROUNDUP((nextfree + n), PGSIZE);
+		nextfree = ROUNDUP(nextfree + n, PGSIZE);
 	}
-	if (nextfree < result)
+	if ((uint32_t)nextfree - KERNBASE > (npages*PGSIZE))
 		panic("out of memory\n"); 
 	
 	return result;
@@ -157,10 +156,10 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-	pages = (struct PageInfo *) boot_alloc(npages * PGSIZE);
+	pages = (struct PageInfo *) boot_alloc(npages * sizeof(struct PageInfo));
 	//panic("boot_alloc success\n");
 	memset(pages, 0, npages * sizeof(struct PageInfo));
-	panic("page allocation success\n");
+	//panic("page allocation success\n");
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
@@ -168,10 +167,12 @@ mem_init(void)
 	// particular, we can now map memory using boot_map_region
 	// or page_insert
 	page_init();
-
+	//panic("page_init success");
 	check_page_free_list(1);
+	//panic("free list check\n");
 	check_page_alloc();
 	check_page();
+	panic("page check success\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -269,21 +270,21 @@ page_init(void)
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
-
-	for (; i < (EXTPHYSMEM - IOPHYSMEM) / PGSIZE; i++) {
-                pages[i].pp_ref = 1;
-        }
-
+	cprintf("basemem page = %x\n", i);
+//	panic("test 2\n");
 	uint32_t boot_end = (uint32_t)boot_alloc(0);
-	for (; i < (boot_end - IOPHYSMEM) / PGSIZE; i++) {
+	for (; i < ((boot_end - KERNBASE) / PGSIZE); i++) {
 		pages[i].pp_ref = 1;
         }
-
+	cprintf("ref_page = %x\n", boot_end);
+//	panic("test 3\n");
         for (; i < npages; i++) {
 		pages[i].pp_ref = 0;
                 pages[i].pp_link = page_free_list;
                 page_free_list = &pages[i];
-        }	
+        }
+	cprintf("total page = %x\n", i);
+//	panic("test 4\n");
 }
 
 //
@@ -520,7 +521,7 @@ check_page_free_list(bool only_low_memory)
 		else
 			++nfree_extmem;
 	}
-
+	cprintf("nfree_basemem = %x, nfree_extmem = %x\n", nfree_basemem, nfree_extmem);
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
 }
