@@ -370,7 +370,29 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	pde_t pde = pgdir[PDX(va)];
+	if (create)
+	{
+		struct PageInfo *pp = page_alloc(true);
+		if (!pp)
+		{
+			return NULL;
+		}
+		pp->pp_ref ++;
+		pgdir[PDX(va)] = page2pa(pp) | PTE_P | PTE_W | PTE_U;
+		return (pte_t *) page2kva(pp) + PTX(va);
+	}
+	else
+	{
+		if (pde & PTE_P)
+		{
+			return (pte_t *) KADDR(PTE_ADDR(pde)) + PTX(va);
+		}
+		else
+		{
+			return NULL;
+		}
+	}
 }
 
 //
@@ -388,6 +410,12 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	uintptr_t va_end = va + size;
+	for (; va != va_end; va += PGSIZE, pa += PGSIZE)
+	{
+		pte_t *pte = pgdir_walk(pgdir, (void *)va, true);
+		*pte = pa | perm | PTE_P;
+	}
 }
 
 //
@@ -419,6 +447,17 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t *pte = pgdir_walk(pgdir, va, true);
+	if (NULL == pte)
+	{
+		return -E_NO_MEM;
+	} 
+	if(*pte & PTE_P)
+	{
+		page_remove(pgdir, va);
+	}
+	pp->pp_ref++;
+	*pte = page2pa(pp) | perm | PTE_P;
 	return 0;
 }
 
@@ -437,7 +476,19 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	if (NULL == pte_store)
+	{
+		return NULL;
+	}
+	pte_t *pte = pgdir_walk(pgdir, va, false);
+	if (*pte & PTE_P && NULL != pte)
+	{
+		*pte_store = pte;
+		return pa2page(PTE_ADDR(pte));
+	}
+	else {
+		return NULL;
+	}
 }
 
 //
@@ -459,6 +510,15 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t *pte;
+	struct PageInfo *pp = page_lookup(pgdir, va, &pte);
+	if (pp)
+	{
+		pp->pp_ref--;
+		page_decref(pp);
+		*pte = 0;
+		tlb_invalidate(pgdir, va);
+	}
 }
 
 //
@@ -713,13 +773,12 @@ check_page(void)
 
 	// should be no free memory
 	assert(!page_alloc(0));
-
 	// there is no page allocated at address 0
 	assert(page_lookup(kern_pgdir, (void *) 0x0, &ptep) == NULL);
-
+	//panic("lookup success\n");
 	// there is no free memory, so we can't allocate a page table
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
-
+	//panic("insert success\n");
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == 0);
