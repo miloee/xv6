@@ -172,7 +172,7 @@ mem_init(void)
 	//panic("free list check\n");
 	check_page_alloc();
 	check_page();
-	panic("page check success\n");
+	//panic("page check success\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -371,9 +371,14 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
 	pde_t pde = pgdir[PDX(va)];
+	if (pde & PTE_P)
+	{
+		return (pte_t *) KADDR(PTE_ADDR(pde))     + PTX(va);
+	}
+
 	if (create)
 	{
-		struct PageInfo *pp = page_alloc(true);
+		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 		if (!pp)
 		{
 			return NULL;
@@ -384,14 +389,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	}
 	else
 	{
-		if (pde & PTE_P)
-		{
-			return (pte_t *) KADDR(PTE_ADDR(pde)) + PTX(va);
-		}
-		else
-		{
-			return NULL;
-		}
+		return NULL;
 	}
 }
 
@@ -451,13 +449,15 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	if (NULL == pte)
 	{
 		return -E_NO_MEM;
-	} 
+	}
+	pp->pp_ref++; 
 	if(*pte & PTE_P)
 	{
+		tlb_invalidate(pgdir, va);
 		page_remove(pgdir, va);
 	}
-	pp->pp_ref++;
 	*pte = page2pa(pp) | perm | PTE_P;
+	//pgdir[PDX(va)] |= perm;
 	return 0;
 }
 
@@ -476,15 +476,15 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	if (NULL == pte_store)
-	{
-		return NULL;
-	}
 	pte_t *pte = pgdir_walk(pgdir, va, false);
 	if (*pte & PTE_P && NULL != pte)
 	{
 		*pte_store = pte;
-		return pa2page(PTE_ADDR(pte));
+		if (NULL == pte_store)
+		{
+			return NULL;
+		}
+		return pa2page(PTE_ADDR(*pte));
 	}
 	else {
 		return NULL;
@@ -512,9 +512,8 @@ page_remove(pde_t *pgdir, void *va)
 	// Fill this function in
 	pte_t *pte;
 	struct PageInfo *pp = page_lookup(pgdir, va, &pte);
-	if (pp)
+	if (pp != NULL)
 	{
-		pp->pp_ref--;
 		page_decref(pp);
 		*pte = 0;
 		tlb_invalidate(pgdir, va);
