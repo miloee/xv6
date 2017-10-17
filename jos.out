@@ -1,0 +1,28 @@
+*** Now run 'make gdb'.
+***
+6828 decimal is XXX octal!
+Physical memory: 131072K available, base = 640K, extended = 130432K
+end = f011e970, npages = 8000, npages_basemem = a0
+nfree_basemem = 9f, nfree_extmem = 7da0
+check_page_alloc() start!
+check_page_alloc() succeeded!
+check_page() succeeded!
+EAX=00000000 EBX=00000000 ECX=00000400 EDX=00000000
+ESI=00000000 EDI=f7fff000 EBP=f011bef8 ESP=f011beec
+EIP=f010309a EFL=00000006 [-----P-] CPL=0 II=0 A20=1 SMM=0 HLT=0
+ES =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
+SS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+DS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+FS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+GS =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+LDT=0000 00000000 0000ffff 00008200 DPL=0 LDT
+TR =0000 00000000 0000ffff 00008b00 DPL=0 TSS32-busy
+GDT=     00007c4c 00000017
+IDT=     00000000 000003ff
+CR0=80010011 CR2=f7fff000 CR3=0011c000 CR4=00000000
+DR0=00000000 DR1=00000000 DR2=00000000 DR3=00000000 
+DR6=ffff0ff0 DR7=00000400
+EFER=0000000000000000
+Triple fault.  Halting for inspection via QEMU monitor.
+qemu: terminating on signal 15 from pid 32405
